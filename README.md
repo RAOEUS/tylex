@@ -4,8 +4,7 @@ A simple, fast, and powerful text expansion utility for GNU Linux Tiling Window 
 
 Tylex lets you create short abbreviations (e.g., `em`) that expand into longer phrases or snippets of text (e.g., `user@example.com`). It's written in pure shell script, making it lightweight and a perfect fit for tiling window manager workflows.
 
-*![Tylex Screenshot](https://placehold.co/800x400/2d3748/edf2f7?text=Tylex+in+Action)*
-*(Replace this with a real screenshot of your script running with rofi)*
+*![Tylex Screenshot](screenshots/tylex.jpg)*
 
 ## Features
 
