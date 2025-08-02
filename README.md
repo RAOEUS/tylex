@@ -23,7 +23,25 @@ You will need the following programs installed:
 -   And one of the following launchers:
     -   `rofi` (recommended)
     -   `dmenu`
+---
+## Usage
 
+Tylex works in two simple steps: adding a new snippet and expanding it.
+
+### 1. Add an Expansion
+
+Use your hotkey for `tylex-add` (e.g., `Super + Shift + Z`). You will be prompted twice:
+
+1.  First, type the short **abbreviation** you want to use (e.g., `em`) and press Enter.
+2.  Next, type the full **expansion text** it should become (e.g., `your-email@example.com`) and press Enter.
+
+### 2. Use an Expansion
+
+Use your hotkey for `tylex-expand` (e.g., `Super + Z`).
+
+1.  A list of all your saved expansions will appear in `rofi` or `dmenu`.
+2.  Start typing any part of the abbreviation or the expansion to **filter** the list.
+3.  Select the entry you want and press Enter. The full text will be typed out for you instantly.
 ---
 ## Installation
 
@@ -93,7 +111,6 @@ super + shift + semicolon
 ```
 
 ---
-
 ## Wayland Compatibility
 
 This script relies on `xdotool` and will not work on Wayland out of the box. To adapt it, install a Wayland-native tool like `wtype` and replace the `xdotool` loop in `/usr/bin/tylex-expand` with `echo "$value" | wtype -`.
