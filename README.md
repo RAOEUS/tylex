@@ -55,7 +55,7 @@ Use this method if a package is not available for your distribution.
 1.  **Install the Scripts (with `sudo`)**:
     First, clone the repository and run the `install` command with `sudo` to copy the executable scripts and documentation to system-wide locations.
 ```sh
-git clone [https://github.com/raoeus/tylex.git](https://github.com/raoeus/tylex.git)
+git clone https://github.com/raoeus/tylex.git
 cd tylex
 sudo make install
 ```
