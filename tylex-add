@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+# tylex-add: Launch rofi/dmenu to add a new text expansion.
+#
+
+# Determine configuration and data directories using XDG standards
+XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
+
+CONFIG_DIR="$XDG_CONFIG_HOME/tylex"
+DATA_DIR="$XDG_DATA_HOME/tylex"
+
+CONFIG_FILE="$CONFIG_DIR/config.sh"
+EXP_FILE="$DATA_DIR/expansions.json"
+
+# Source user configuration if it exists
+[ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+
+# Auto-detect launcher if not set by the user
+if [ -z "$LAUNCHER" ]; then
+	if command -v rofi >/dev/null 2>&1; then
+		LAUNCHER="rofi -dmenu -i"
+	else
+		LAUNCHER="dmenu -i"
+	fi
+fi
+
+# Ensure data directory and expansions file exist
+mkdir -p "$DATA_DIR"
+[ -f "$EXP_FILE" ] || echo '[]' > "$EXP_FILE"
+
+# Prompt for the new abbreviation (key)
+key=$(echo | eval "$LAUNCHER" -p "New abbreviation:")
+[ -z "$key" ] && exit 0
+
+# Prompt for the expansion text (value)
+value=$(echo | eval "$LAUNCHER" -p "Expansion for '$key':")
+[ -z "$value" ] && exit 0
+
+# Add the new entry to the JSON file if the key does not already exist
+tmp_file="$(mktemp)"
+jq --arg k "$key" --arg v "$value" '
+if any(.[]; .key == $k) then
+	. # If key exists, do nothing
+else
+	. + [{"key": $k, "value": $v, "usage": 0}] # Otherwise, add new entry
+end
+' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
+

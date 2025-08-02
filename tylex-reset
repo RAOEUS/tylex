@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# tylex-reset: Interactively reset all expansion usage counts to zero.
+#
+
+# Determine data directory using XDG standards
+XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
+DATA_DIR="$XDG_DATA_HOME/tylex"
+EXP_FILE="$DATA_DIR/expansions.json"
+
+# Ensure the expansions file exists before proceeding
+if [ ! -f "$EXP_FILE" ]; then
+	echo "Error: Expansions file not found at '$EXP_FILE'."
+	exit 1
+fi
+
+TMP_FILE="$(mktemp)"
+CHARS="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+LENGTH=6
+
+# Styling helpers for terminal output
+bold=$(tput bold)
+normal=$(tput sgr0)
+
+# Generate a random challenge code to prevent accidental reset
+CHALLENGE=$(tr -dc "$CHARS" < /dev/urandom | head -c "$LENGTH")
+
+# Display confirmation prompt
+echo "${bold}This will reset all usage counts to 0.${normal}"
+echo "To confirm, type the following code exactly: ${bold}$CHALLENGE${normal}"
+echo "Or type '${bold}cancel${normal}' to abort."
+read -rp "> " INPUT
+
+# Process user input
+if [[ -z "$INPUT" || "$INPUT" =~ ^[Cc][Aa][Nn][Cc][Ee][Ll]$ ]]; then
+	echo "${bold}Reset cancelled.${normal}"
+	exit 0
+elif [[ "$INPUT" == "$CHALLENGE" ]]; then
+	# If code matches, reset usage counts in the JSON file
+	jq 'map(.usage = 0)' "$EXP_FILE" > "$TMP_FILE" && mv "$TMP_FILE" "$EXP_FILE"
+	echo "${bold}All usage counts have been reset to 0.${normal}"
+else
+	echo "${bold}Incorrect code. Reset aborted.${normal}"
+	exit 1
+fi
+
