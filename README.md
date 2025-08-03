@@ -4,7 +4,6 @@ A simple, fast, and powerful text expansion utility for the modern Linux desktop
 
 Tylex lets you create short abbreviations (e.g., `em`) that expand into longer phrases or snippets of text (e.g., `user@example.com`). It's written in pure shell script, making it lightweight and a perfect fit for any workflow, from minimal tiling window managers to full-featured desktop environments.
 
-**
 ---
 ## Features
 
