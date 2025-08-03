@@ -19,11 +19,17 @@ Tylex lets you create short abbreviations (e.g., `em`) that expand into longer p
 You will need the following programs installed:
   * `bash`
   * `jq` (for parsing JSON)
-  * `xdotool` (for simulating keyboard input on X11)
   * `xclip` (for copy-to-clipboard functionality)
-  * And one of the following launchers:
-      * `rofi` (recommended)
-      * `dmenu`
+
+**And one of the following launchers:**
+  * `rofi` (recommended)
+  * `dmenu`
+
+**And a display-server-specific tool for typing:**
+  * For **X11** sessions: `xdotool`
+  * For **Wayland** sessions: `wtype`
+
+Tylex will automatically detect your session type and use the appropriate tool.
 ---
 ## Installation
 
