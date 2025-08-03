@@ -16,61 +16,64 @@ Tylex lets you create short abbreviations (e.g., `em`) that expand into longer p
 ---
 ## Dependencies
 
-You will need the following programs installed:
-  * `bash`
-  * `jq` (for parsing JSON)
-  * `xclip` (for copy-to-clipboard functionality)
+Tylex requires a few core utilities that your package manager will install automatically:
 
-**And one of the following launchers:**
-  * `rofi` (recommended)
-  * `dmenu`
+* `bash`
+* `jq` (for parsing JSON)
+* `xdotool` (for typing on X11)
+* `wtype` (for typing on Wayland)
 
-**And a display-server-specific tool for typing:**
-  * For **X11** sessions: `xdotool`
-  * For **Wayland** sessions: `wtype`
+### Choosing a Launcher (Required Manual Step)
 
-Tylex will automatically detect your session type and use the appropriate tool.
+You must also choose **one** menu launcher and install it manually. The `rofi` and `rofi-wayland` packages conflict and cannot be installed at the same time.
+
+* **For Wayland sessions (Recommended):**
+    ```sh
+    sudo pacman -S rofi-wayland
+    ```
+* **For X11 sessions:**
+    ```sh
+    sudo pacman -S rofi
+    ```
+* **Fallback option:**
+    ```sh
+    sudo pacman -S dmenu
+    ```
+
+Tylex is smart and will automatically use whichever launcher it finds. We recommend `rofi-wayland` or `rofi` for the best experience.
 ---
 ## Installation
-
-Tylex will run with sensible defaults out of the box. If you want to customize its behavior, you will need to create a configuration file. The installation method determines how you do this.
 
 ### Method 1: Via a Package Manager (e.g., AUR)
 
 This is the recommended method for most users.
 
-1.  **Install the package**:
-```sh
-yay -S tylex-git
-```
-2.  **(Optional) Create a custom configuration**:
-    The package manager will place a template config file in the system's documentation directory. To use it, copy it to your local config directory:
-```sh
-# Create the directory first
-mkdir -p ~/.config/tylex
+1.  **First, install your preferred launcher** (see "Choosing a Launcher" above). For example:
+    ```sh
+    # This command installs the Wayland version
+    sudo pacman -S rofi-wayland
+    ```
 
-# Copy the template
-cp /usr/share/doc/tylex/config.sh ~/.config/tylex/config.sh
-```
-You can now edit `~/.config/tylex/config.sh` to customize Tylex.
+2.  **Then, install Tylex** from the AUR:
+    ```sh
+    yay -S tylex-git
+    ```
 
 ### Method 2: Manual Installation from Source
 
-Use this method if a package is not available for your distribution.
+1.  **Install your launcher and all dependencies** as described in the Dependencies section above.
 
-1.  **Install the Scripts (with `sudo`)**:
-    First, clone the repository and run the `install` command with `sudo` to copy the executable scripts and documentation to system-wide locations.
-```sh
-git clone https://github.com/raoeus/tylex.git
-cd tylex
-sudo make install
-```
+2.  **Install the Tylex Scripts (with `sudo`)**:
+    ```sh
+    git clone [https://github.com/raoeus/tylex.git](https://github.com/raoeus/tylex.git)
+    cd tylex
+    sudo make install
+    ```
 
-2.  **Create Your User Configuration (without `sudo`)**:
-    Next, run the `config` command **as your regular user** (no `sudo`). This is a convenience command that copies the configuration template into your home directory for you.
-```sh
-make config
-```
+3.  **Create Your User Configuration (without `sudo`)**:
+    ```sh
+    make config
+    ```
 ---
 ## Post-Installation: Setting a Hotkey
 
