@@ -1,59 +1,62 @@
 #!/bin/bash
 #
-# tylex-add: Launch rofi/dmenu to add a new text expansion.
-#
+# tylex-add: Launch rofi/dmenu to add a new text expansion,
+# skipping if the same key already exists,
+# and sending desktop notifications so you always get feedback.
 
-# Determine configuration and data directories using XDG standards
+# — ensure notifications work from inside rofi/dmenu —
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+export DISPLAY="${DISPLAY:-:0}"
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+
+# — XDG directories —
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 
 CONFIG_DIR="$XDG_CONFIG_HOME/tylex"
 DATA_DIR="$XDG_DATA_HOME/tylex"
-
 CONFIG_FILE="$CONFIG_DIR/config.sh"
 EXP_FILE="$DATA_DIR/expansions.json"
 
-# Source user configuration if it exists
+# load user overrides if present
 [ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
 
-# Auto-detect launcher if not set by the user
+# auto‐detect rofi or dmenu
 if [ -z "$LAUNCHER" ]; then
-	if command -v rofi >/dev/null 2>&1; then
-		LAUNCHER="rofi -dmenu -i"
-	else
-		LAUNCHER="dmenu -i"
-	fi
+  if command -v rofi &>/dev/null; then
+    LAUNCHER="rofi -dmenu -i"
+  else
+    LAUNCHER="dmenu -i"
+  fi
 fi
 
-# Ensure data directory and expansions file exist
+# ensure data file exists
 mkdir -p "$DATA_DIR"
 [ -f "$EXP_FILE" ] || echo '[]' > "$EXP_FILE"
 
-# Prompt for the new abbreviation (key)
+# prompt for abbreviation (key)
 key=$(echo | eval "$LAUNCHER" -p "New abbreviation:")
+# trim whitespace
+key="$(echo -n "$key" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 [ -z "$key" ] && exit 0
 
-# Prompt for the expansion text (value)
+# prompt for expansion (value)
 value=$(echo | eval "$LAUNCHER" -p "Expansion for '$key':")
+value="$(echo -n "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
 [ -z "$value" ] && exit 0
 
-# Bail out if an identical snippet (same key AND same value) is already in the file
-if jq -e --arg k "$key" --arg v "$value" '
-     any(.[]; .key == $k and .value == $v)
-   ' "$EXP_FILE" >/dev/null; then
-  skip_msg="Snippet '$key' → '$value' already exists; skipping."
-  # Notify the user via desktop notification
-  notify-send "Tylex" "$skip_msg"
+# if key already exists, skip
+if jq -e --arg k "$key" 'any(.[]; .key == $k)' "$EXP_FILE" >/dev/null; then
+  notify-send "Tylex" "Snippet '$key' already exists; skipping."
   exit 0
 fi
 
-# Add the new entry to the JSON file if the key does not already exist
+# append new snippet
 tmp_file="$(mktemp)"
 jq --arg k "$key" --arg v "$value" '
-if any(.[]; .key == $k) then
-	. # If key exists, do nothing
-else
-	. + [{"key": $k, "value": $v, "usage": 0}] # Otherwise, add new entry
-end
+  . + [{ key: $k, value: $v, usage: 0 }]
 ' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
+
+notify-send "Tylex" "Added snippet '$key' → '$value'."
 
