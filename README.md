@@ -114,18 +114,6 @@ bindsym $mod+semicolon exec tylex-expand
 bindsym $mod+Shift+semicolon exec tylex-add
 ```
 
-#### Sway (`~/.config/sway/config`)
-
-The syntax is identical to i3.
-
-```
-# Tylex: Expand a snippet
-bindsmy $mod+semicolon exec tylex-expand
-
-# Tylex: Add a new snippet
-bindsym $mod+Shift+semicolon exec tylex-add
-```
-
 #### bspwm (`~/.config/sxhkd/sxhkdrc`)
 
 ```
