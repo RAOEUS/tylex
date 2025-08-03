@@ -23,7 +23,6 @@ Tylex requires the following programs, which will be installed automatically whe
 * `rofi` (Recommended launcher)
 * `dmenu` (Fallback launcher)
 * `xdotool` (for typing on X11)
-* `wtype` (for typing on Wayland)
 
 Tylex is smart and will automatically use whichever launcher it finds. We recommend `rofi` for the best experience.
 ---
