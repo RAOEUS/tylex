@@ -4,6 +4,8 @@ A simple, fast, and powerful text expansion utility for the modern Linux desktop
 
 Tylex lets you create short abbreviations (e.g., `em`) that expand into longer phrases or snippets of text (e.g., `user@example.com`). It's written in pure shell script, making it lightweight and a perfect fit for any workflow, from minimal tiling window managers to full-featured desktop environments.
 
+*![Tylex Screenshot](screenshots/tylex.jpg)*
+
 ---
 ## Features
 
@@ -25,6 +27,25 @@ Tylex requires the following programs, which will be installed automatically whe
 * `xdotool` (for typing on X11)
 
 Tylex is smart and will automatically use whichever launcher it finds. We recommend `rofi` for the best experience.
+---
+## Usage
+
+Tylex works in two simple steps: adding a new snippet and expanding it.
+
+### 1. Add an Expansion
+
+Use your hotkey for `tylex-add` (e.g., `Super + Shift + Z`). You will be prompted twice:
+
+1.  First, type the short **abbreviation** you want to use (e.g., `em`) and press Enter.
+2.  Next, type the full **expansion text** it should become (e.g., `your-email@example.com`) and press Enter.
+
+### 2. Use an Expansion
+
+Use your hotkey for `tylex-expand` (e.g., `Super + Z`).
+
+1.  A list of all your saved expansions will appear in `rofi` or `dmenu`.
+2.  Start typing any part of the abbreviation or the expansion to **filter** the list.
+3.  Select the entry you want and press Enter. The full text will be typed out for you instantly.
 ---
 ## Installation
 
