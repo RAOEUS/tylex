@@ -37,6 +37,16 @@ key=$(echo | eval "$LAUNCHER" -p "New abbreviation:")
 value=$(echo | eval "$LAUNCHER" -p "Expansion for '$key':")
 [ -z "$value" ] && exit 0
 
+# Bail out if an identical snippet (same key AND same value) is already in the file
+if jq -e --arg k "$key" --arg v "$value" '
+     any(.[]; .key == $k and .value == $v)
+   ' "$EXP_FILE" >/dev/null; then
+  skip_msg="Snippet '$key' → '$value' already exists; skipping."
+  # Notify the user via desktop notification
+  notify-send "Tylex" "$skip_msg"
+  exit 0
+fi
+
 # Add the new entry to the JSON file if the key does not already exist
 tmp_file="$(mktemp)"
 jq --arg k "$key" --arg v "$value" '
