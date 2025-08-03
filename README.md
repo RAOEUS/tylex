@@ -16,31 +16,16 @@ Tylex lets you create short abbreviations (e.g., `em`) that expand into longer p
 ---
 ## Dependencies
 
-Tylex requires a few core utilities that your package manager will install automatically:
+Tylex requires the following programs, which will be installed automatically when using a package manager.
 
 * `bash`
 * `jq` (for parsing JSON)
+* `rofi` (Recommended launcher)
+* `dmenu` (Fallback launcher)
 * `xdotool` (for typing on X11)
 * `wtype` (for typing on Wayland)
 
-### Choosing a Launcher (Required Manual Step)
-
-You must also choose **one** menu launcher and install it manually. The `rofi` and `rofi-wayland` packages conflict and cannot be installed at the same time.
-
-* **For Wayland sessions (Recommended):**
-    ```sh
-    sudo pacman -S rofi-wayland
-    ```
-* **For X11 sessions:**
-    ```sh
-    sudo pacman -S rofi
-    ```
-* **Fallback option:**
-    ```sh
-    sudo pacman -S dmenu
-    ```
-
-Tylex is smart and will automatically use whichever launcher it finds. We recommend `rofi-wayland` or `rofi` for the best experience.
+Tylex is smart and will automatically use whichever launcher it finds. We recommend `rofi` for the best experience.
 ---
 ## Installation
 
@@ -48,32 +33,22 @@ Tylex is smart and will automatically use whichever launcher it finds. We recomm
 
 This is the recommended method for most users.
 
-1.  **First, install your preferred launcher** (see "Choosing a Launcher" above). For example:
-    ```sh
-    # This command installs the Wayland version
-    sudo pacman -S rofi-wayland
-    ```
-
-2.  **Then, install Tylex** from the AUR:
-    ```sh
-    yay -S tylex-git
-    ```
+```sh
+yay -S tylex-git
+```
 
 ### Method 2: Manual Installation from Source
 
-1.  **Install your launcher and all dependencies** as described in the Dependencies section above.
-
-2.  **Install the Tylex Scripts (with `sudo`)**:
-    ```sh
-    git clone [https://github.com/raoeus/tylex.git](https://github.com/raoeus/tylex.git)
-    cd tylex
-    sudo make install
-    ```
-
-3.  **Create Your User Configuration (without `sudo`)**:
-    ```sh
-    make config
-    ```
+1.  **Install the Tylex Scripts (with `sudo`)**:
+```sh
+git clone https://github.com/raoeus/tylex.git
+cd tylex
+sudo make install
+```
+2.  **Create Your User Configuration (without `sudo`)**:
+```sh
+make config
+```
 ---
 ## Post-Installation: Setting a Hotkey
 
@@ -82,6 +57,8 @@ Tylex is most effective when bound to a keyboard shortcut. The process differs b
 A safe and memorable shortcut is `Super + ;` (the Super key is the Windows or Command key).
 
 ### Desktop Environments (GNOME, KDE, XFCE)
+
+> **Must use X11. Wayland is incompatible.**
 
 Most desktop environments provide a graphical settings panel to create custom keyboard shortcuts that run a command.
 
@@ -153,7 +130,3 @@ awful.keyboard.append_global_keybindings({
             {description = "Add Tylex snippet", group = "launcher"})
 })
 ```
----
-## Wayland Compatibility
-
-This script relies on `xdotool` and will not work on Wayland out of the box. To adapt it, install a Wayland-native tool like `wtype` and replace the `xdotool` loop in `/usr/bin/tylex-expand` with `echo "$value" | wtype -`.

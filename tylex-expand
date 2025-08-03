@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# tylex-expand: Launch rofi/dmenu to select and type a text expansion.
+# tylex-add: Launch rofi/dmenu to add a new text expansion.
 #
 
 # Determine configuration and data directories using XDG standards
@@ -16,113 +16,34 @@ EXP_FILE="$DATA_DIR/expansions.json"
 # Source user configuration if it exists
 [ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
 
-# Set defaults for configuration options
-KEY_DELAY_MS=${KEY_DELAY_MS:-20}
-CONFIG_KEYWORD=${CONFIG_KEYWORD:-config}
-DATA_KEYWORD=${DATA_KEYWORD:-data}
-
-# --- Session Detection ---
-SESSION_TYPE=""
-if [ -n "$XDG_SESSION_TYPE" ]; then
-	SESSION_TYPE="$XDG_SESSION_TYPE"
-elif [ -n "$WAYLAND_DISPLAY" ]; then
-	SESSION_TYPE="wayland"
-elif [ -n "$DISPLAY" ]; then
-	SESSION_TYPE="x11"
-fi
-
-# Auto-detect launcher based on session type if not set by user
+# Auto-detect launcher if not set by the user
 if [ -z "$LAUNCHER" ]; then
-	if [[ "$SESSION_TYPE" == "wayland" ]] && command -v rofi-wayland >/dev/null 2>&1; then
-		LAUNCHER="rofi-wayland -dmenu -i -matching fuzzy"
-	elif command -v rofi >/dev/null 2>&1; then
-		LAUNCHER="rofi -dmenu -i -matching fuzzy"
+	if command -v rofi >/dev/null 2>&1; then
+		LAUNCHER="rofi -dmenu -i"
 	else
 		LAUNCHER="dmenu -i"
 	fi
-fi
-
-# --- Dynamic Wayland Fix ---
-# If on Wayland with Rofi, check for GNOME/KDE which lack layer-shell support.
-# If found, automatically force Rofi to use the X11 backend via XWayland.
-if [[ "$SESSION_TYPE" == "wayland" && "$LAUNCHER" == *"rofi"* ]]; then
-	case "$XDG_CURRENT_DESKTOP" in
-		*GNOME*|*KDE*)
-			LAUNCHER="GDK_BACKEND=x11 $LAUNCHER"
-			;;
-	esac
 fi
 
 # Ensure data directory and expansions file exist
 mkdir -p "$DATA_DIR"
 [ -f "$EXP_FILE" ] || echo '[]' > "$EXP_FILE"
 
-# Create visually distinct entries for the special actions
-if [[ "$LAUNCHER" == *"rofi"* ]]; then
-	LAUNCHER_OPTS="-markup-rows"
-	CONFIG_ENTRY="<i><b>$CONFIG_KEYWORD</b> → Open config directory</i>"
-	DATA_ENTRY="<i><b>$DATA_KEYWORD</b> → Open expansions directory</i>"
-else
-	LAUNCHER_OPTS=""
-	CONFIG_ENTRY="-- $CONFIG_KEYWORD → Open config directory --"
-	DATA_ENTRY="-- $DATA_KEYWORD → Open expansions directory --"
-fi
+# Prompt for the new abbreviation (key)
+key=$(echo | eval "$LAUNCHER" -p "New abbreviation:")
+[ -z "$key" ] && exit 0
 
-# Combine special entries and expansions, then pipe to the launcher
-choice=$( (
-	echo "$CONFIG_ENTRY"
-	echo "$DATA_ENTRY"
-	jq -r '
-	sort_by(.key) |
-		sort_by(-.usage) |
-		map("\(.key) → \(.value) (\(.usage))") |
-		.[]
-	' "$EXP_FILE"
-	) | eval "$LAUNCHER $LAUNCHER_OPTS" -p "Expand:")
+# Prompt for the expansion text (value)
+value=$(echo | eval "$LAUNCHER" -p "Expansion for '$key':")
+[ -z "$value" ] && exit 0
 
-# Exit if no choice was made
-[ -z "$choice" ] && exit 0
-
-# Handle the selected action
-case "$choice" in
-	"$CONFIG_ENTRY")
-		xdg-open "$CONFIG_DIR" &>/dev/null &
-		exit 0
-		;;
-	"$DATA_ENTRY")
-		xdg-open "$DATA_DIR" &>/dev/null &
-		exit 0
-		;;
-esac
-
-# If not a special action, proceed with expansion
-key="${choice%% →*}"
-value=$(jq -r --arg k "$key" '.[] | select(.key == $k) | .value' "$EXP_FILE")
-
-# Execute typing command based on detected session type
-case "$SESSION_TYPE" in
-	"wayland")
-		if ! command -v wtype >/dev/null 2>&1; then
-			echo "Error: 'wtype' is not installed. Please install it to use Tylex on Wayland." >&2
-			exit 1
-		fi
-		echo -n "$value" | wtype -d "$KEY_DELAY_MS" -
-		;;
-	"x11")
-		if ! command -v xdotool >/dev/null 2>&1; then
-			echo "Error: 'xdotool' is not installed. Please install it to use Tylex on X11." >&2
-			exit 1
-		fi
-		for ((i = 0; i < ${#value}; i++)); do
-			xdotool type --delay "$KEY_DELAY_MS" "${value:$i:1}"
-		done
-		;;
-	*)
-		echo "Error: Could not detect a supported display server (X11 or Wayland)." >&2
-		exit 1
-		;;
-esac
-
-# Increment the usage count for the selected expansion
+# Add the new entry to the JSON file if the key does not already exist
 tmp_file="$(mktemp)"
-jq --arg k "$key" 'map(if .key == $k then .usage += 1 else . end)' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
+jq --arg k "$key" --arg v "$value" '
+if any(.[]; .key == $k) then
+	. # If key exists, do nothing
+else
+	. + [{"key": $k, "value": $v, "usage": 0}] # Otherwise, add new entry
+end
+' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
+

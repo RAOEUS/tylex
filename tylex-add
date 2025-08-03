@@ -16,36 +16,13 @@ EXP_FILE="$DATA_DIR/expansions.json"
 # Source user configuration if it exists
 [ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
 
-# Determine session type for launcher selection
-SESSION_TYPE=""
-if [ -n "$XDG_SESSION_TYPE" ]; then
-	SESSION_TYPE="$XDG_SESSION_TYPE"
-elif [ -n "$WAYLAND_DISPLAY" ]; then
-	SESSION_TYPE="wayland"
-elif [ -n "$DISPLAY" ]; then
-	SESSION_TYPE="x11"
-fi
-
-# Auto-detect launcher based on session type if not set by user
+# Auto-detect launcher if not set by the user
 if [ -z "$LAUNCHER" ]; then
-	if [[ "$SESSION_TYPE" == "wayland" ]] && command -v rofi-wayland >/dev/null 2>&1; then
-		LAUNCHER="rofi-wayland -dmenu -i"
-	elif command -v rofi >/dev/null 2>&1; then
+	if command -v rofi >/dev/null 2>&1; then
 		LAUNCHER="rofi -dmenu -i"
 	else
 		LAUNCHER="dmenu -i"
 	fi
-fi
-
-# --- Dynamic Wayland Fix ---
-# If on Wayland with Rofi, check for GNOME/KDE which lack layer-shell support.
-# If found, automatically force Rofi to use the X11 backend via XWayland.
-if [[ "$SESSION_TYPE" == "wayland" && "$LAUNCHER" == *"rofi"* ]]; then
-	case "$XDG_CURRENT_DESKTOP" in
-		*GNOME*|*KDE*)
-			LAUNCHER="GDK_BACKEND=x11 $LAUNCHER"
-			;;
-	esac
 fi
 
 # Ensure data directory and expansions file exist
@@ -69,3 +46,4 @@ else
 	. + [{"key": $k, "value": $v, "usage": 0}] # Otherwise, add new entry
 end
 ' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
+
