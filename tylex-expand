@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# tylex-add: Launch rofi/dmenu to add a new text expansion.
+# tylex-expand: Launch rofi/dmenu to select and type a text expansion.
 #
 
 # Determine configuration and data directories using XDG standards
@@ -16,12 +16,17 @@ EXP_FILE="$DATA_DIR/expansions.json"
 # Source user configuration if it exists
 [ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
 
-# Auto-detect launcher if not set by the user
+# Set defaults for configuration options
+KEY_DELAY_MS=${KEY_DELAY_MS:-20}
+CONFIG_KEYWORD=${CONFIG_KEYWORD:-config}
+DATA_KEYWORD=${DATA_KEYWORD:-data} # New keyword for expansions directory
+
+# Auto-detect launcher with fuzzy support if not set by the user
 if [ -z "$LAUNCHER" ]; then
 	if command -v rofi >/dev/null 2>&1; then
-		LAUNCHER="rofi -dmenu -i"
+		LAUNCHER="rofi -dmenu -i -matching fuzzy"
 	else
-		LAUNCHER="dmenu -i"
+		LAUNCHER="dmenu -i" # dmenu has no fuzzy support
 	fi
 fi
 
@@ -29,21 +34,56 @@ fi
 mkdir -p "$DATA_DIR"
 [ -f "$EXP_FILE" ] || echo '[]' > "$EXP_FILE"
 
-# Prompt for the new abbreviation (key)
-key=$(echo | eval "$LAUNCHER" -p "New abbreviation:")
-[ -z "$key" ] && exit 0
-
-# Prompt for the expansion text (value)
-value=$(echo | eval "$LAUNCHER" -p "Expansion for '$key':")
-[ -z "$value" ] && exit 0
-
-# Add the new entry to the JSON file if the key does not already exist
-tmp_file="$(mktemp)"
-jq --arg k "$key" --arg v "$value" '
-if any(.[]; .key == $k) then
-	. # If key exists, do nothing
+# Create visually distinct entries for the special actions
+if [[ "$LAUNCHER" == *"rofi"* ]]; then
+	# For Rofi, use Pango markup for bold & italic text
+	LAUNCHER_OPTS="-markup-rows"
+	CONFIG_ENTRY="<i><b>$CONFIG_KEYWORD</b> → Open config directory</i>"
+	DATA_ENTRY="<i><b>$DATA_KEYWORD</b> → Open expansions directory</i>"
 else
-	. + [{"key": $k, "value": $v, "usage": 0}] # Otherwise, add new entry
-end
-' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
+	# For dmenu, use simple text separators
+	LAUNCHER_OPTS=""
+	CONFIG_ENTRY="-- $CONFIG_KEYWORD → Open config directory --"
+	DATA_ENTRY="-- $DATA_KEYWORD → Open expansions directory --"
+fi
+
+# Combine special entries and expansions, then pipe to the launcher
+choice=$( (
+	echo "$CONFIG_ENTRY"
+	echo "$DATA_ENTRY"
+	jq -r '
+	sort_by(.key) |
+		sort_by(-.usage) |
+		map("\(.key) → \(.value) (\(.usage))") |
+		.[]
+	' "$EXP_FILE"
+	) | eval "$LAUNCHER $LAUNCHER_OPTS" -p "Expand:")
+
+# Exit if no choice was made
+[ -z "$choice" ] && exit 0
+
+# Handle the selected action
+case "$choice" in
+	"$CONFIG_ENTRY")
+		xdg-open "$CONFIG_DIR" &>/dev/null &
+		exit 0
+		;;
+	"$DATA_ENTRY")
+		xdg-open "$DATA_DIR" &>/dev/null &
+		exit 0
+		;;
+esac
+
+# If not a special action, proceed with expansion
+key="${choice%% →*}"
+value=$(jq -r --arg k "$key" '.[] | select(.key == $k) | .value' "$EXP_FILE")
+
+# Type the expansion using xdotool (for X11)
+for ((i = 0; i < ${#value}; i++)); do
+	xdotool type --delay "$KEY_DELAY_MS" "${value:$i:1}"
+done
+
+# Increment the usage count for the selected expansion
+tmp_file="$(mktemp)"
+jq --arg k "$key" 'map(if .key == $k then .usage += 1 else . end)' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
 
