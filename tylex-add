@@ -16,9 +16,21 @@ EXP_FILE="$DATA_DIR/expansions.json"
 # Source user configuration if it exists
 [ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
 
-# Auto-detect launcher if not set by the user
+# Determine session type for launcher selection
+SESSION_TYPE=""
+if [ -n "$XDG_SESSION_TYPE" ]; then
+	SESSION_TYPE="$XDG_SESSION_TYPE"
+elif [ -n "$WAYLAND_DISPLAY" ]; then
+	SESSION_TYPE="wayland"
+elif [ -n "$DISPLAY" ]; then
+	SESSION_TYPE="x11"
+fi
+
+# Auto-detect launcher based on session type if not set by user
 if [ -z "$LAUNCHER" ]; then
-	if command -v rofi >/dev/null 2>&1; then
+	if [[ "$SESSION_TYPE" == "wayland" ]] && command -v rofi-wayland >/dev/null 2>&1; then
+		LAUNCHER="rofi-wayland -dmenu -i"
+	elif command -v rofi >/dev/null 2>&1; then
 		LAUNCHER="rofi -dmenu -i"
 	else
 		LAUNCHER="dmenu -i"
@@ -46,4 +58,3 @@ else
 	. + [{"key": $k, "value": $v, "usage": 0}] # Otherwise, add new entry
 end
 ' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
-

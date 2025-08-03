@@ -21,13 +21,28 @@ KEY_DELAY_MS=${KEY_DELAY_MS:-20}
 CONFIG_KEYWORD=${CONFIG_KEYWORD:-config}
 DATA_KEYWORD=${DATA_KEYWORD:-data} # New keyword for expansions directory
 
-# Auto-detect launcher with fuzzy support if not set by the user
+# --- Session Detection ---
+# Determine the session type to inform launcher selection and typing method.
+SESSION_TYPE=""
+if [ -n "$XDG_SESSION_TYPE" ]; then
+	SESSION_TYPE="$XDG_SESSION_TYPE"
+elif [ -n "$WAYLAND_DISPLAY" ]; then
+	SESSION_TYPE="wayland"
+elif [ -n "$DISPLAY" ]; then
+	SESSION_TYPE="x11"
+fi
+
+# Auto-detect launcher based on session type if not set by user
 if [ -z "$LAUNCHER" ]; then
-    if command -v rofi >/dev/null 2>&1; then
-        LAUNCHER="rofi -dmenu -i -matching fuzzy"
-    else
-        LAUNCHER="dmenu -i" # dmenu has no fuzzy support
-    fi
+	if [[ "$SESSION_TYPE" == "wayland" ]] && command -v rofi-wayland >/dev/null 2>&1; then
+		LAUNCHER="rofi-wayland -dmenu -i -matching fuzzy"
+	elif command -v rofi >/dev/null 2>&1; then
+		# This catches regular rofi on X11 or a Wayland-compatible rofi fork
+		LAUNCHER="rofi -dmenu -i -matching fuzzy"
+	else
+		# Fallback for both sessions
+		LAUNCHER="dmenu -i"
+	fi
 fi
 
 # Ensure data directory and expansions file exist
@@ -36,87 +51,74 @@ mkdir -p "$DATA_DIR"
 
 # Create visually distinct entries for the special actions
 if [[ "$LAUNCHER" == *"rofi"* ]]; then
-    # For Rofi, use Pango markup for bold & italic text
-    LAUNCHER_OPTS="-markup-rows"
-    CONFIG_ENTRY="<i><b>$CONFIG_KEYWORD</b> → Open config directory</i>"
-    DATA_ENTRY="<i><b>$DATA_KEYWORD</b> → Open expansions directory</i>"
+	# For Rofi, use Pango markup for bold & italic text. Matches 'rofi' and 'rofi-wayland'.
+	LAUNCHER_OPTS="-markup-rows"
+	CONFIG_ENTRY="<i><b>$CONFIG_KEYWORD</b> → Open config directory</i>"
+	DATA_ENTRY="<i><b>$DATA_KEYWORD</b> → Open expansions directory</i>"
 else
-    # For dmenu, use simple text separators
-    LAUNCHER_OPTS=""
-    CONFIG_ENTRY="-- $CONFIG_KEYWORD → Open config directory --"
-    DATA_ENTRY="-- $DATA_KEYWORD → Open expansions directory --"
+	# For dmenu, use simple text separators
+	LAUNCHER_OPTS=""
+	CONFIG_ENTRY="-- $CONFIG_KEYWORD → Open config directory --"
+	DATA_ENTRY="-- $DATA_KEYWORD → Open expansions directory --"
 fi
 
 # Combine special entries and expansions, then pipe to the launcher
 choice=$( (
-    echo "$CONFIG_ENTRY"
-    echo "$DATA_ENTRY"
-    jq -r '
-    sort_by(.key) |
-        sort_by(-.usage) |
-        map("\(.key) → \(.value) (\(.usage))") |
-        .[]
-    ' "$EXP_FILE"
-    ) | eval "$LAUNCHER $LAUNCHER_OPTS" -p "Expand:")
+	echo "$CONFIG_ENTRY"
+	echo "$DATA_ENTRY"
+	jq -r '
+	sort_by(.key) |
+		sort_by(-.usage) |
+		map("\(.key) → \(.value) (\(.usage))") |
+		.[]
+	' "$EXP_FILE"
+	) | eval "$LAUNCHER $LAUNCHER_OPTS" -p "Expand:")
 
 # Exit if no choice was made
 [ -z "$choice" ] && exit 0
 
 # Handle the selected action
 case "$choice" in
-    "$CONFIG_ENTRY")
-        xdg-open "$CONFIG_DIR" &>/dev/null &
-        exit 0
-        ;;
-    "$DATA_ENTRY")
-        xdg-open "$DATA_DIR" &>/dev/null &
-        exit 0
-        ;;
+	"$CONFIG_ENTRY")
+		xdg-open "$CONFIG_DIR" &>/dev/null &
+		exit 0
+		;;
+	"$DATA_ENTRY")
+		xdg-open "$DATA_DIR" &>/dev/null &
+		exit 0
+		;;
 esac
 
 # If not a special action, proceed with expansion
 key="${choice%% →*}"
 value=$(jq -r --arg k "$key" '.[] | select(.key == $k) | .value' "$EXP_FILE")
 
-# --- Robust Session Detection and Typing ---
-
-# Determine the session type with fallbacks
-SESSION_TYPE=""
-if [ -n "$XDG_SESSION_TYPE" ]; then
-    SESSION_TYPE="$XDG_SESSION_TYPE"
-elif [ -n "$WAYLAND_DISPLAY" ]; then
-    SESSION_TYPE="wayland"
-elif [ -n "$DISPLAY" ]; then
-    SESSION_TYPE="x11"
-fi
-
 # Execute typing command based on detected session type
 case "$SESSION_TYPE" in
-    "wayland")
-        if ! command -v wtype >/dev/null 2>&1; then
-            echo "Error: 'wtype' is not installed. Please install it to use Tylex on Wayland." >&2
-            exit 1
-        fi
-        # Use wtype for Wayland
-        echo -n "$value" | wtype -d "$KEY_DELAY_MS" -
-        ;;
-    "x11")
-        if ! command -v xdotool >/dev/null 2>&1; then
-            echo "Error: 'xdotool' is not installed. Please install it to use Tylex on X11." >&2
-            exit 1
-        fi
-        # Use xdotool for X11, typing character by character with delay
-        for ((i = 0; i < ${#value}; i++)); do
-            xdotool type --delay "$KEY_DELAY_MS" "${value:$i:1}"
-        done
-        ;;
-    *)
-        echo "Error: Could not detect a supported display server (X11 or Wayland)." >&2
-        exit 1
-        ;;
+	"wayland")
+		if ! command -v wtype >/dev/null 2>&1; then
+			echo "Error: 'wtype' is not installed. Please install it to use Tylex on Wayland." >&2
+			exit 1
+		fi
+		# Use wtype for Wayland
+		echo -n "$value" | wtype -d "$KEY_DELAY_MS" -
+		;;
+	"x11")
+		if ! command -v xdotool >/dev/null 2>&1; then
+			echo "Error: 'xdotool' is not installed. Please install it to use Tylex on X11." >&2
+			exit 1
+		fi
+		# Use xdotool for X11, typing character by character with delay
+		for ((i = 0; i < ${#value}; i++)); do
+			xdotool type --delay "$KEY_DELAY_MS" "${value:$i:1}"
+		done
+		;;
+	*)
+		echo "Error: Could not detect a supported display server (X11 or Wayland)." >&2
+		exit 1
+		;;
 esac
 
 # Increment the usage count for the selected expansion
 tmp_file="$(mktemp)"
 jq --arg k "$key" 'map(if .key == $k then .usage += 1 else . end)' "$EXP_FILE" > "$tmp_file" && mv "$tmp_file" "$EXP_FILE"
-
