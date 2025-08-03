@@ -19,10 +19,9 @@ EXP_FILE="$DATA_DIR/expansions.json"
 # Set defaults for configuration options
 KEY_DELAY_MS=${KEY_DELAY_MS:-20}
 CONFIG_KEYWORD=${CONFIG_KEYWORD:-config}
-DATA_KEYWORD=${DATA_KEYWORD:-data} # New keyword for expansions directory
+DATA_KEYWORD=${DATA_KEYWORD:-data}
 
 # --- Session Detection ---
-# Determine the session type to inform launcher selection and typing method.
 SESSION_TYPE=""
 if [ -n "$XDG_SESSION_TYPE" ]; then
 	SESSION_TYPE="$XDG_SESSION_TYPE"
@@ -37,12 +36,21 @@ if [ -z "$LAUNCHER" ]; then
 	if [[ "$SESSION_TYPE" == "wayland" ]] && command -v rofi-wayland >/dev/null 2>&1; then
 		LAUNCHER="rofi-wayland -dmenu -i -matching fuzzy"
 	elif command -v rofi >/dev/null 2>&1; then
-		# This catches regular rofi on X11 or a Wayland-compatible rofi fork
 		LAUNCHER="rofi -dmenu -i -matching fuzzy"
 	else
-		# Fallback for both sessions
 		LAUNCHER="dmenu -i"
 	fi
+fi
+
+# --- Dynamic Wayland Fix ---
+# If on Wayland with Rofi, check for GNOME/KDE which lack layer-shell support.
+# If found, automatically force Rofi to use the X11 backend via XWayland.
+if [[ "$SESSION_TYPE" == "wayland" && "$LAUNCHER" == *"rofi"* ]]; then
+	case "$XDG_CURRENT_DESKTOP" in
+		*GNOME*|*KDE*)
+			LAUNCHER="GDK_BACKEND=x11 $LAUNCHER"
+			;;
+	esac
 fi
 
 # Ensure data directory and expansions file exist
@@ -51,12 +59,10 @@ mkdir -p "$DATA_DIR"
 
 # Create visually distinct entries for the special actions
 if [[ "$LAUNCHER" == *"rofi"* ]]; then
-	# For Rofi, use Pango markup for bold & italic text. Matches 'rofi' and 'rofi-wayland'.
 	LAUNCHER_OPTS="-markup-rows"
 	CONFIG_ENTRY="<i><b>$CONFIG_KEYWORD</b> → Open config directory</i>"
 	DATA_ENTRY="<i><b>$DATA_KEYWORD</b> → Open expansions directory</i>"
 else
-	# For dmenu, use simple text separators
 	LAUNCHER_OPTS=""
 	CONFIG_ENTRY="-- $CONFIG_KEYWORD → Open config directory --"
 	DATA_ENTRY="-- $DATA_KEYWORD → Open expansions directory --"
@@ -100,7 +106,6 @@ case "$SESSION_TYPE" in
 			echo "Error: 'wtype' is not installed. Please install it to use Tylex on Wayland." >&2
 			exit 1
 		fi
-		# Use wtype for Wayland
 		echo -n "$value" | wtype -d "$KEY_DELAY_MS" -
 		;;
 	"x11")
@@ -108,7 +113,6 @@ case "$SESSION_TYPE" in
 			echo "Error: 'xdotool' is not installed. Please install it to use Tylex on X11." >&2
 			exit 1
 		fi
-		# Use xdotool for X11, typing character by character with delay
 		for ((i = 0; i < ${#value}; i++)); do
 			xdotool type --delay "$KEY_DELAY_MS" "${value:$i:1}"
 		done

@@ -37,6 +37,17 @@ if [ -z "$LAUNCHER" ]; then
 	fi
 fi
 
+# --- Dynamic Wayland Fix ---
+# If on Wayland with Rofi, check for GNOME/KDE which lack layer-shell support.
+# If found, automatically force Rofi to use the X11 backend via XWayland.
+if [[ "$SESSION_TYPE" == "wayland" && "$LAUNCHER" == *"rofi"* ]]; then
+	case "$XDG_CURRENT_DESKTOP" in
+		*GNOME*|*KDE*)
+			LAUNCHER="GDK_BACKEND=x11 $LAUNCHER"
+			;;
+	esac
+fi
+
 # Ensure data directory and expansions file exist
 mkdir -p "$DATA_DIR"
 [ -f "$EXP_FILE" ] || echo '[]' > "$EXP_FILE"
